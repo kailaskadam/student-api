@@ -1,0 +1,34 @@
+Query parameters — filters after the ?
+🔍 Real-world analogy: Query params are like search filters on a shopping website. You go to the same page (/products) but filter what you see:
+
+# Same endpoint — different results based on filters
+GET /products?category=shoes
+GET /products?category=shoes&size=42&color=black
+GET /students?skip=0&limit=10
+GET /students?search=kailas
+How to write it in FastAPI
+Any function parameter that is NOT in the URL path → FastAPI treats it as a query param. That simple.
+
+# skip and limit are NOT in the path → query params
+@app.get("/students")
+def list_students(skip: int = 0, limit: int = 10):
+    return {"skip": skip, "limit": limit}
+
+# GET /students           → skip=0, limit=10  (defaults)
+# GET /students?skip=5   → skip=5, limit=10
+# GET /students?skip=5&limit=20 → skip=5, limit=20
+# Optional query param — may or may not be sent
+from typing import Optional
+
+@app.get("/students")
+def list_students(
+    skip:   int           = 0,     # always has a value (0)
+    limit:  int           = 10,    # always has a value (10)
+    search: Optional[str] = None   # might not be sent at all
+):
+    if search:
+        return {"searching for": search}
+    return {"skip": skip, "limit": limit}
+
+# GET /students              → {"skip":0, "limit":10}
+# GET /students?search=kai   → {"searching for":"kai"}

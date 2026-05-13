@@ -1,0 +1,182 @@
+@app is a decorator — it connects a URL to a function
+
+First — what is app?
+pythonfrom fastapi import FastAPI
+
+app = FastAPI()
+app is just a variable. It holds your entire FastAPI application. You named it app — you could call it anything (api, server, myapp) but app is the convention.
+
+What is @app.get("/") then?
+The @ symbol means decorator. A decorator wraps a function and adds extra behaviour to it.
+python@app.get("/students")
+def list_students():
+    return {"students": []}
+This is telling FastAPI:
+
+"When someone makes a GET request to the URL /students — run the list_students function."
+
+Without the decorator, list_students is just a regular Python function. Nobody can call it from a browser. The decorator is what registers it as an API endpoint.
+
+Think of it like this:
+python# Without decorator — just a normal Python function
+# nobody can reach this from the internet
+def list_students():
+    return {"students": []}
+
+# With decorator — now it's a live API endpoint!
+# GET http://localhost:8000/students → calls this function
+@app.get("/students")
+def list_students():
+    return {"students": []}
+
+The different decorators:
+python@app.get("/students")      # handles GET requests
+@app.post("/students")     # handles POST requests
+@app.put("/students/{id}") # handles PUT requests
+@app.delete("/students/{id}") # handles DELETE requests
+Each one tells FastAPI — "when this type of HTTP request comes to this URL — run the function below."
+
+So the full picture:
+pythonfrom fastapi import FastAPI
+
+app = FastAPI()        # 1. create the app
+
+@app.get("/hello")     # 2. register this URL + method
+def say_hello():       # 3. this function runs when called
+    return {"msg": "hello"}
+PartWhat it isapp = FastAPI()Creates your application@app.getDecorator — registers a GET endpoint"/hello"The URL path it listens todef say_hello()The function that runsreturn {...}What gets sent back as JSON
+
+Does that make sense? The @ is just Python's way of saying "apply this behaviour to the function below it." Say "next" when ready to continue! 🚀
+
+
+so if i want to create one more module class then i will create one more file and say @app
+
+11:47
+Claude responded: Exactly right thinking!
+Exactly right thinking! But there's a small issue — if you create a new file, it won't have access to the app from main.py unless you import it.
+
+Let me show you the proper way to do this in FastAPI:
+
+The right way — use APIRouter
+Think of it like this:
+
+app in main.py = the main application (one only)
+APIRouter in other files = mini routers that plug into the main app
+Your project structure:
+
+FastAPI-App/
+├── main.py
+├── routers/
+│   ├── students.py
+│   └── teachers.py
+Step 1 — Create routers/students.py
+
+Instead of @app, you use @router:
+
+python
+# routers/students.py
+from fastapi import APIRouter
+
+router = APIRouter()        # like a mini-app for this module
+
+@router.get("/students")    # @router not @app!
+def list_students():
+    return {"students": []}
+
+@router.get("/students/{id}")
+def get_student(id: int):
+    return {"id": id}
+
+@router.post("/students")
+def create_student():
+    return {"created": True}
+Step 2 — Create routers/teachers.py
+
+python
+# routers/teachers.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/teachers")
+def list_teachers():
+    return {"teachers": []}
+
+@router.post("/teachers")
+def create_teacher():
+    return {"created": True}
+Step 3 — Connect both to main.py
+
+python
+# main.py
+from fastapi import FastAPI
+from routers import students, teachers   # import the files
+
+app = FastAPI()
+
+# plug the routers into the main app
+app.include_router(students.router)
+app.include_router(teachers.router)
+
+@app.get("/")
+def root():
+    return {"message": "API running"}
+Run it — all routes work:
+
+GET  http://localhost:8000/
+GET  http://localhost:8000/students
+GET  http://localhost:8000/students/42
+POST http://localhost:8000/students
+GET  http://localhost:8000/teachers
+POST http://localhost:8000/teachers
+You can also add a prefix so you don't repeat /students everywhere:
+
+python
+# main.py
+app.include_router(students.router, prefix="/students", tags=["Students"])
+app.include_router(teachers.router, prefix="/teachers", tags=["Teachers"])
+Then in students.py you remove /students from each route:
+
+python
+# routers/students.py
+router = APIRouter()
+
+@router.get("/")          # means /students/
+def list_students():
+    return {"students": []}
+
+@router.get("/{id}")      # means /students/{id}
+def get_student(id: int):
+    return {"id": id}
+
+@router.post("/")         # means /students/
+def create_student():
+    return {"created": True}
+Much cleaner — the prefix is defined once in main.py, not repeated in every route.
+
+The mental model:
+
+File	Role
+main.py	Has app — the boss, connects everything
+routers/students.py	Has router — handles student routes
+routers/teachers.py	Has router — handles teacher routes
+One app, many routers — they all plug into app via include_router().
+
+Also create a routers/__init__.py empty file so Python treats the folder as a package:
+
+bash
+touch routers/__init__.py
+Try creating the folder structure and say "next" when ready for Lesson 3 — Pydantic models 🚀
+Exactly! 🎯
+Perfect way to put it:
+app = entry point        (main.py)
+router = just routes     (other files)
+
+It's exactly like this in other frameworks you know:
+FrameworkEntry pointRoutesFastAPIapp = FastAPI()router = APIRouter()Spring Boot@SpringBootApplication@RestControllerExpress.jsconst app = express()const router = express.Router()
+Same concept everywhere — one entry point, many route files plugged into it.
+
+One line summary:
+
+app starts the server and knows about all routes.
+router just defines routes and hands them to app.

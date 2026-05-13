@@ -1,0 +1,61 @@
+Request body — data sent invisibly with the request
+📦 Real-world analogy: Path and query params are like writing on the outside of an envelope (the address). The request body is like the letter inside the envelope — hidden, can be big, and is what you're actually sending.
+
+# You can't put a whole student object in the URL
+# ✗ This is ugly and limited:
+GET /students?name=Kailas&age=28&email=k@test.com&grade=9.5
+
+# ✓ Send it as body — clean and unlimited:
+POST /students
+{
+    "name":  "Kailas",
+    "age":   28,
+    "email": "k@test.com",
+    "grade": 9.5
+}
+How to write it in FastAPI — Pydantic model
+First define the shape of the data (called a model), then use it as a function param:
+
+# Step 1 — Define the shape of your data
+from pydantic import BaseModel
+
+class Student(BaseModel):   # like a blueprint
+    name:  str              # must be text
+    age:   int              # must be a number
+    email: str = None       # optional
+
+# Step 2 — Use the model as a function param
+@app.post("/students")
+def create_student(student: Student):
+#                   ^^^^^^^^^^^^^^^
+# FastAPI sees "Student" model → expects JSON body
+    return {
+        "message": "Student created!",
+        "name":    student.name,
+        "age":     student.age
+    }
+# What you send (in /docs or Postman):
+{
+    "name": "Kailas",
+    "age":  28
+}
+
+# What you get back:
+{
+    "message": "Student created!",
+    "name":    "Kailas",
+    "age":     28
+}
+💡 Key rule: Body is only used with POST, PUT, PATCH — never with GET or DELETE. GET just reads data, it doesn't need to send data.
+All 3 together — the most common pattern
+# PUT /students/42  + body = update student 42
+@app.put("/students/{id}")          # id = path param
+def update_student(
+    id:      int,                   # ← PATH param (from URL)
+    student: Student                # ← BODY (from JSON)
+):
+    return {"updated id": id, "data": student.name}
+
+# URL:  PUT /students/42
+# Body: {"name":"Kailas Updated","age":29}
+# FastAPI knows: 42 = path, {name,age} = body

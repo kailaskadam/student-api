@@ -1,0 +1,36 @@
+Path parameters — part of the URL
+A path param is a variable piece of the URL. You use it to identify which specific item you want. Think of it like this:
+
+🏬 Real-world analogy: Imagine a library. The URL is like the shelf location:
+
+# Without path param — get ALL books
+GET /books
+
+# With path param — get book number 5 specifically
+GET /books/5
+
+# Another path param — get chapter 3 of book 5
+GET /books/5/chapters/3
+How to write it in FastAPI
+Put the variable name in {} in the route, then add the same name as a function parameter:
+
+# Step 1: put {id} in the route path
+@app.get("/students/{id}")
+#                ^^^^
+# Step 2: add same name as function param with a type
+def get_student(id: int):
+#                ^^^^^^^^^
+# FastAPI connects them automatically!
+    return {"student_id": id}
+
+# When someone calls: GET /students/42
+# FastAPI puts 42 into the id variable
+# → {"student_id": 42}
+# Multiple path params — same idea
+@app.get("/classes/{class_id}/students/{student_id}")
+def get_student(class_id: int, student_id: int):
+    return {
+        "class":   class_id,
+        "student": student_id
+    }
+# GET /classes/10/students/42 → {"class":10,"student":42}

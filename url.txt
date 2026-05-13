@@ -1,0 +1,43 @@
+A URL has 3 places to send data to your API
+When your browser or app calls an API, it can send data in 3 different ways. Understanding WHERE the data is tells you which type it is.
+
+Example URL:
+http://localhost:8000
+/
+students
+/
+42
+?
+subject
+=
+math
+&
+semester
+=
+2
+Path param — part of the URL itself
+Query param — after the ? sign
+1
+Path param — inside the URL path
+It's part of the URL address itself. Like a file path — /students/42 means student number 42. It identifies a specific resource.
+
+# 42 in the URL is a path param
+GET http://localhost:8000/students/42
+2
+Query param — after the ? in the URL
+Extra filters or options you pass to the API. They come after a ? and look like key=value. You can have many — separate them with &.
+
+# subject and semester are query params
+GET http://localhost:8000/students?subject=math&semester=2
+3
+Request body — hidden data sent with POST/PUT
+Not in the URL at all. It's sent separately as JSON — like a form you fill in. Used when creating or updating data. You can send lots of data this way.
+
+# body is NOT in the URL — sent separately as JSON
+POST http://localhost:8000/students
+# body:
+{
+    "name": "Kailas",
+    "age": 28,
+    "email": "k@test.com"
+}

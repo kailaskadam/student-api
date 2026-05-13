@@ -1,0 +1,224 @@
+What is Pydantic?
+Pydantic is a Python library that lets you define the shape and rules of your data. Once you define a model, Pydantic automatically:
+
+1
+Validates incoming data
+If someone sends wrong data type or misses a required field — Pydantic catches it and returns a clear error. You write zero validation code.
+
+2
+Converts types automatically
+If someone sends "28" (a string) for an int field — Pydantic quietly converts it to 28. Smart coercion built in.
+
+3
+Documents your API
+FastAPI reads your Pydantic models and auto-generates the schema in /docs. The Swagger UI shows exactly what fields are expected.
+
+The simplest model
+from pydantic import BaseModel
+
+# Define the shape of a Student
+class Student(BaseModel):
+    name:  str     # must be text
+    age:   int     # must be a whole number
+    grade: float   # must be a decimal number
+class Student(BaseModel)
+name
+:
+str
+REQUIRED
+age
+:
+int
+REQUIRED
+grade
+:
+float
+REQUIRED
+# Use it in a route — FastAPI expects JSON body matching this shape
+@app.post("/students")
+def create_student(student: Student):
+    print(student.name)   # "Kailas"
+    print(student.age)    # 28
+    print(student.grade)  # 9.5
+    return student        # auto converts to JSON
+
+# Valid request body:
+# {"name": "Kailas", "age": 28, "grade": 9.5}  ✓
+
+# Invalid — age is text:
+# {"name": "Kailas", "age": "hello", "grade": 9.5}
+# → 422 error automatically!
+
+Fields and validation
+Required vs Optional vs Default
+from pydantic  import BaseModel, Field
+from typing   import Optional
+
+class Student(BaseModel):
+    # REQUIRED — caller must always send this
+    name:     str
+
+    # REQUIRED with validation rules
+    age:      int    = Field(gt=0, lt=120)   # must be 0 < age < 120
+
+    # HAS DEFAULT — caller can skip it
+    grade:    float  = 0.0                  # if not sent → 0.0
+    city:     str    = "Pune"              # if not sent → "Pune"
+    active:   bool   = True               # if not sent → True
+
+    # OPTIONAL — may or may not be sent, None if missing
+    email:    Optional[str]  = None        # can be missing
+    phone:    Optional[str]  = None
+class Student(BaseModel)
+name
+:
+str
+REQUIRED
+age
+:
+int
+REQUIRED
+0 < age < 120
+grade
+:
+float
+default 0.0
+city
+:
+str
+default "Pune"
+active
+:
+bool
+default True
+email
+:
+str | None
+optional → None
+phone
+:
+str | None
+optional → None
+Field() — add validation rules
+from pydantic import BaseModel, Field
+
+class Student(BaseModel):
+    # gt = greater than, lt = less than
+    # ge = greater or equal, le = less or equal
+    age:   int   = Field(gt=0, le=100)
+    grade: float = Field(ge=0.0, le=10.0)
+
+    # min_length, max_length for strings
+    name:  str   = Field(min_length=2, max_length=50)
+
+    # description shows up in /docs
+    email: str   = Field(description="Student email address")
+
+# Age = 150  → 422: age must be less than or equal to 100
+# Name = "K" → 422: name must be at least 2 characters
+# Grade = 11 → 422: grade must be less than or equal to 10
+💡 Field() cheatsheet:
+gt = greater than    ge = greater or equal
+lt = less than       le = less or equal
+min_length / max_length for strings
+
+Nested models — model inside a model
+Just like you can have a class inside a class — you can nest Pydantic models.
+
+from pydantic import BaseModel
+from typing   import List, Optional
+
+# Inner model
+class Address(BaseModel):
+    street: str
+    city:   str
+    pin:    str
+
+# Inner model
+class Subject(BaseModel):
+    name:  str
+    marks: float
+
+# Outer model — uses the inner ones
+class Student(BaseModel):
+    name:     str
+    age:      int
+    address:  Address          # nested single object
+    subjects: List[Subject]    # list of objects
+# JSON body you send for this model:
+{
+    "name": "Kailas",
+    "age": 28,
+    "address": {
+        "street": "MG Road",
+        "city": "Pune",
+        "pin": "411001"
+    },
+    "subjects": [
+        {"name": "Math",    "marks": 95.5},
+        {"name": "Science", "marks": 88.0}
+    ]
+}
+# Access nested data in your route
+@app.post("/students")
+def create_student(student: Student):
+    print(student.name)              # "Kailas"
+    print(student.address.city)      # "Pune"
+    print(student.subjects[0].name)  # "Math"
+    return student
+
+Request model vs Response model
+You often want different models for receiving data vs sending data back. Example: receive password, never send it back.
+
+from pydantic  import BaseModel
+from typing    import Optional
+
+# What we RECEIVE from the caller (has password)
+class StudentCreate(BaseModel):
+    name:     str
+    age:      int
+    email:    str
+    password: str    # receive but never send back!
+
+# What we SEND back to the caller (no password)
+class StudentResponse(BaseModel):
+    id:    int
+    name:  str
+    age:   int
+    email: str
+    # no password here!
+
+# Tell FastAPI which model to use for response
+@app.post("/students", response_model=StudentResponse)
+def create_student(student: StudentCreate):
+    # save to DB... (lesson 5)
+    # even if we return password accidentally,
+    # FastAPI strips it because of response_model!
+    return {
+        "id":       1,
+        "name":     student.name,
+        "age":      student.age,
+        "email":    student.email,
+        "password": student.password  # stripped automatically!
+    }
+🤯 response_model is powerful — FastAPI filters the response to only include fields defined in the response model. Even if your function accidentally returns extra fields like password, they're stripped out before sending to the client.
+Common naming pattern
+# Standard convention for model names:
+class StudentBase(BaseModel):      # shared fields
+    name: str
+    age:  int
+
+class StudentCreate(StudentBase):   # for POST — adds password
+    password: str
+
+class StudentUpdate(StudentBase):   # for PUT — all optional
+    name: Optional[str] = None
+    age:  Optional[int] = None
+
+class StudentResponse(StudentBase): # for response — adds id
+    id: int
+
+# StudentCreate  → inherits name+age, adds password
+# StudentUpdate  → all fields optional for PATCH
+# StudentResponse → inherits name+age, adds id
+💡 Inheritance saves repetition — define shared fields in a Base class, then inherit and only add what's different. Same idea as Java inheritance.
